@@ -909,6 +909,7 @@ fastn_dom.ElementKind = {
         return [17, [webcomponent, args]];
     },
     Video: 18,
+    Audio: 19,
 };
 
 fastn_dom.PropertyKind = {
@@ -1028,7 +1029,7 @@ fastn_dom.PropertyKind = {
     VideoSrc: 111,
     Autoplay: 112,
     Poster: 113,
-    LoopVideo: 114,
+    Loop: 114,
     Controls: 115,
     Muted: 116,
     LinkColor: 117,
@@ -1040,6 +1041,7 @@ fastn_dom.PropertyKind = {
     FetchPriority: 123,
     Download: 124,
     SrcDoc: 125,
+    AutoFocus: 126,
 };
 
 fastn_dom.Loading = {
@@ -3110,6 +3112,8 @@ class Node2 {
                     break;
             }
             this.updateTextInputValue();
+        } else if (kind === fastn_dom.PropertyKind.AutoFocus) {
+            this.attachAttribute("autofocus", staticValue);
         } else if (kind === fastn_dom.PropertyKind.Download) {
             if (fastn_utils.isNull(staticValue)) {
                 return;
@@ -3241,7 +3245,7 @@ class Node2 {
             } else {
                 this.removeAttribute("controls");
             }
-        } else if (kind === fastn_dom.PropertyKind.LoopVideo) {
+        } else if (kind === fastn_dom.PropertyKind.Loop) {
             if (staticValue) {
                 this.attachAttribute("loop", staticValue);
             } else {
@@ -3749,6 +3753,8 @@ let fastn_utils = {
             attributes["allowfullscreen"] = "";
         } else if (kind === fastn_dom.ElementKind.Image) {
             node = "img";
+        } else if (kind === fastn_dom.ElementKind.Audio) {
+            node = "audio";
         } else if (kind === fastn_dom.ElementKind.Video) {
             node = "video";
         } else if (
@@ -4892,6 +4898,42 @@ const ftd = (function () {
         );
     };
 
+    /**
+     * Check if the app is mounted
+     * @param {string} app
+     * @returns {boolean}
+     */
+    exports.is_app_mounted = (app) => {
+        if (app instanceof fastn.mutableClass) app = app.get();
+        app = app.replaceAll("-", "_");
+        return !!ftd.app_urls.get(app);
+    };
+
+    /**
+     * Construct the `path` relative to the mountpoint of `app`
+     *
+     * @param {string} path
+     * @param {string} app
+     *
+     * @returns {string}
+     */
+    exports.app_url_ex = (path, app) => {
+        if (path instanceof fastn.mutableClass)
+            path = fastn_utils.getStaticValue(path);
+        if (app instanceof fastn.mutableClass)
+            app = fastn_utils.getStaticValue(app);
+
+        app = app.replaceAll("-", "_");
+
+        let prefix = ftd.app_urls.get(app)?.get() || "";
+
+        if (prefix.length > 0 && prefix.charAt(prefix.length - 1) === "/") {
+            prefix = prefix.substring(0, prefix.length - 1);
+        }
+
+        return prefix + path;
+    };
+
     // Todo: Implement this (Remove highlighter)
     exports.clean_code = (args) => args.a;
 
@@ -5320,22 +5362,105 @@ const ftd = (function () {
         return fastn_utils.private.getCookie("fastn-lang");
     };
 
-    exports.submit_form = function (url, ...args) {
-        if (url instanceof fastn.mutableClass) url = url.get();
+    exports.submit_form = function (url_part, ...args) {
+        let url = url_part;
 
+        let form_error = null;
         let data = {};
         let arg_map = {};
+
+        if (url_part instanceof Array) {
+            if (!url_part.length === 2) {
+                console.error(
+                    `[submit_form]: The first arg must be the url as string or a tuple (url, form_error). Got ${url_part}`,
+                );
+                return;
+            }
+            url = url_part[0];
+            form_error = url_part[1];
+
+            if (!(form_error instanceof fastn.mutableClass)) {
+                console.error(
+                    "[submit_form]: form_error must be a mutable, got",
+                    form_error,
+                );
+                return;
+            }
+            form_error.set(null);
+
+            arg_map["all"] = fastn.recordInstance({
+                error: form_error,
+            });
+        }
+
+        if (url instanceof fastn.mutableClass) url = url.get();
 
         for (let i = 0, len = args.length; i < len; i += 1) {
             let obj = args[i];
             if (obj instanceof fastn.mutableClass) {
                 obj = obj.get();
             }
-            console.assert(obj instanceof fastn.recordInstanceClass);
-            let name = obj.get("name").get();
-            arg_map[name] = obj;
-            obj.get("error").set(null);
-            data[name] = fastn_utils.getFlattenStaticValue(obj.get("value"));
+            if (obj instanceof Array) {
+                if (![2, 3].includes(obj.length)) {
+                    console.error(
+                        `[submit_form]: Invalid tuple ${obj}, expected 2 or 3 elements, got ${obj.length}`,
+                    );
+                    return;
+                }
+                let [key, value, error] = obj;
+
+                key = fastn_utils.getFlattenStaticValue(key);
+
+                if (key == "all") {
+                    console.error(
+                        `[submit_form]: "all" key is reserved. Please change it to something else. Got for (${key}, ${value}, ${error})`,
+                    );
+                    return;
+                }
+
+                if (error === "") {
+                    console.warn(
+                        `[submit_form]: ${obj} has empty error field. You're` +
+                            "probably passing a mutable string type which does not" +
+                            "work. You have to use `-- optional string $error:` for the error variable",
+                    );
+                }
+
+                if (error) {
+                    if (!(error instanceof fastn.mutableClass)) {
+                        console.error(
+                            "[submit_form]: error must be a mutable, got",
+                            error,
+                        );
+                        return;
+                    }
+                    error.set(null);
+                }
+
+                arg_map[key] = fastn.recordInstance({
+                    value,
+                    error,
+                });
+
+                data[key] = fastn_utils.getFlattenStaticValue(value);
+            } else if (obj instanceof fastn.recordInstanceClass) {
+                let name = obj.get("name").get();
+
+                if (name == "all") {
+                    console.error(
+                        `[submit_form]: "all" key is reserved. Please change it to something else. Got for ${obj}`,
+                    );
+                    return;
+                }
+
+                obj.get("error").set(null);
+                arg_map[name] = obj;
+                data[name] = fastn_utils.getFlattenStaticValue(
+                    obj.get("value"),
+                );
+            } else {
+                console.warn("unexpected type in submit_form", obj);
+            }
         }
 
         let init = {
@@ -5369,13 +5494,35 @@ const ftd = (function () {
                             console.warn("found unknown key, ignoring: ", key);
                             continue;
                         }
+
+                        if (!obj.get("error")) {
+                            console.warn(
+                                `error field not found for ${obj}, ignoring: ${key}`,
+                            );
+                            continue;
+                        }
+
                         let error = response.errors[key];
                         if (Array.isArray(error)) {
                             // django returns a list of strings
                             error = error.join(" ");
                         }
                         // @ts-ignore
-                        obj.get("error").set(error);
+                        const err = obj.get("error");
+
+                        // NOTE: when you pass a mutable string type from an ftd
+                        // function to a js func, it is passed as a string type.
+                        // This means we can't mutate it from js.
+                        // But if it's an `-- optional string $something`, then it is passed as a mutableClass.
+                        // The catch is that the above code that creates a
+                        // `recordInstance` to store value and error for when
+                        // the obj is a tuple (key, value, error) creates a
+                        // nested Mutable for some reason which we're checking here.
+                        if (err?.get() instanceof fastn.mutableClass) {
+                            err.get().set(error);
+                        } else {
+                            err.set(error);
+                        }
                     }
                 } else if (!!response.data) {
                     console.error("data not yet implemented");
@@ -5649,7 +5796,7 @@ window.ftd = ftd;
 
 ftd.toggle = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5666,7 +5813,7 @@ ftd.toggle = function (args) {
 }
 ftd.integer_field_with_default = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5677,7 +5824,7 @@ ftd.integer_field_with_default = function (args) {
 }
 ftd.decimal_field_with_default = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5688,7 +5835,7 @@ ftd.decimal_field_with_default = function (args) {
 }
 ftd.boolean_field_with_default = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5699,7 +5846,7 @@ ftd.boolean_field_with_default = function (args) {
 }
 ftd.string_field_with_default = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5710,7 +5857,7 @@ ftd.string_field_with_default = function (args) {
 }
 ftd.increment = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5727,7 +5874,7 @@ ftd.increment = function (args) {
 }
 ftd.increment_by = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5744,7 +5891,7 @@ ftd.increment_by = function (args) {
 }
 ftd.decrement = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5761,7 +5908,7 @@ ftd.decrement = function (args) {
 }
 ftd.decrement_by = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5778,7 +5925,7 @@ ftd.decrement_by = function (args) {
 }
 ftd.enable_light_mode = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5789,7 +5936,7 @@ ftd.enable_light_mode = function (args) {
 }
 ftd.enable_dark_mode = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5800,7 +5947,7 @@ ftd.enable_dark_mode = function (args) {
 }
 ftd.enable_system_mode = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5811,7 +5958,7 @@ ftd.enable_system_mode = function (args) {
 }
 ftd.set_bool = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5828,7 +5975,7 @@ ftd.set_bool = function (args) {
 }
 ftd.set_boolean = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5845,7 +5992,7 @@ ftd.set_boolean = function (args) {
 }
 ftd.set_string = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);
@@ -5862,7 +6009,7 @@ ftd.set_string = function (args) {
 }
 ftd.set_integer = function (args) {
   let __fastn_super_package_name__ = __fastn_package_name__;
-  __fastn_package_name__ = "xkrishguptaa_github_io_theme_fastn";
+  __fastn_package_name__ = "kkrishguptaa_github_io_fastn_theme";
   try {
     let __args__ = fastn_utils.getArgs({
     }, args);

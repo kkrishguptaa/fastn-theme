@@ -1,14 +1,13 @@
 -- import: fastn
 
--- fastn.package: xkrishguptaa.github.io/theme-fastn
+-- fastn.package: kkrishguptaa.github.io/fastn-theme
 
--- fastn.dependency: fastn-community.github.io/code-block
--- fastn.dependency: fastn-community.github.io/dark-mode-switcher
--- fastn.dependency: fastn-community.github.io/color-doc
--- fastn.dependency: fastn-community.github.io/lobster-typography
+-- fastn.dependency: code-block.fifthtry.site
+-- fastn.dependency: dark-mode-switcher.fifthtry.site
+-- fastn.dependency: color-doc.fifthtry.site
+-- fastn.dependency: lobster-typography.fifthtry.site
 
 -- fastn.auto-import: fastn
--- fastn.auto-import: fastn-community.github.io/code-block as cb
--- fastn.auto-import: fastn-community.github.io/dark-mode-switcher as dms
--- fastn.auto-import: fastn-community.github.io/color-doc as cd
-
+-- fastn.auto-import: code-block.fifthtry.site as cb
+-- fastn.auto-import: dark-mode-switcher.fifthtry.site as dms
+-- fastn.auto-import: color-doc.fifthtry.site as cd

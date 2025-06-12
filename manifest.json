@@ -2,8 +2,8 @@
   "files": {
     "FASTN.ftd": {
       "name": "FASTN.ftd",
-      "checksum": "942363EFE1DC6D727228164F6256836C81E78925DEF60B948AD2D4BD08CAF542",
-      "size": 552
+      "checksum": "07A88C61C58BC52F4F80E331006DD826766E122797510CBD4835498A278D4D46",
+      "size": 467
     },
     "LICENSE": {
       "name": "LICENSE",
@@ -22,13 +22,13 @@
     },
     "index.ftd": {
       "name": "index.ftd",
-      "checksum": "1B7CF4655DC32A7FCBE64112A1739DD027BEB9EFA1072D31105FD03E79B96C4D",
-      "size": 26845
+      "checksum": "B63EE840AFE5382358851225454AAC4384C92ABFC74E337DB2968B6DCB8D1CCD",
+      "size": 27253
     },
     "renovate.json": {
       "name": "renovate.json",
-      "checksum": "6BEE862583841571DD043196067EFAB626190CF803954DF86CE68085E486FF19",
-      "size": 131
+      "checksum": "E1575B9FFEA4BB57E77119395BBAA29660C723EF0E33D4F7D01B78FCB094137B",
+      "size": 123
     },
     "static/author-icon.svg": {
       "name": "static/author-icon.svg",
@@ -91,6 +91,6 @@
       "size": 1153
     }
   },
-  "zip_url": "https://codeload.github.com/xkrishguptaa/theme-fastn/zip/refs/heads/main",
-  "checksum": "6F5D0547C70B3E27AF09AF16B449AE0D622612AB3F624A554C71EF4B3F4F9CF7"
+  "zip_url": "https://codeload.github.com/kkrishguptaa/fastn-theme/zip/refs/heads/main",
+  "checksum": "F8CFC4CADCBCE2DC7864C344A4D21AB3F51E7454F39FCE34C18EDB4AC7502CAA"
 }
