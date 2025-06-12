@@ -2,8 +2,8 @@
 -- import: fastn/processors as pr
 -- import: kkrishguptaa.github.io/fastn-theme/assets
 -- import: kkrishguptaa.github.io/fastn-theme/colors
--- import: fastn-community.github.io/color-doc/components as cp
--- import: fastn-community.github.io/lobster-typography as typography
+-- import: color-doc.fifthtry.site/components as cp
+-- import: lobster-typography.fifthtry.site as typography
 
 -- string figma-json:
 $processor$: pr.figma-cs-token
